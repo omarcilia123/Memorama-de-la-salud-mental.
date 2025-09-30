@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Memorama - Salud Mental</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      position: relative;
+    }
+    h1 { color: #0833A2; margin: 10px 0; }
+
+    /* Logos fijos */
+    .logo-fixed { position: fixed; max-width: 15%; z-index: 1000; }
+    .arriba { top: 15px; }
+    .izquierda { left: 15px; }
+    .derecha { right: 15px; }
+
+    /* Contenedores de imágenes a los lados */
+    .imagenes-laterales {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      width: 12%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .izq { left: 0; }
+    .der { right: 0; }
+
+    .imagen-dispersa {
+      width: 80%;
+      max-width: 120px;
+      opacity: 0.6;
+      transition: transform 0.3s, opacity 0.3s;
+    }
+    .imagen-dispersa:hover {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+
+    /* Tablero de cartas */
+    .tablero { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+      gap: 15px; 
+      margin-top: 150px; 
+      z-index: 1; 
+      position: relative; 
+      width: 100%;
+      max-width: 600px;
+    }
+    .carta { 
+      width: 100%; 
+      aspect-ratio: 1/1; 
+      perspective: 1000px; 
+      cursor: pointer; 
+      position: relative; 
+    }
+    .cara { 
+      width: 100%; 
+      height: 100%; 
+      border-radius: 12px; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      text-align: center; 
+      font-size: 14px; 
+      position: absolute; 
+      backface-visibility: hidden; 
+      transition: transform 0.6s; 
+      padding: 10px; 
+    }
+    .frente { background:#000080; color: deepskyblue; }
+    .atras { background: #def2f1; color: #17252a; transform: rotateY(180deg); }
+    .carta.volteada .frente { transform: rotateY(180deg); }
+    .carta.volteada .atras { transform: rotateY(360deg); }
+    .carta.acertada .atras { background: #2b7a78; color: #fff; }
+
+    #mensaje { margin-top: 20px; font-weight: bold; color: #17252a; text-align: center; }
+    #intentos, #cronometro { margin-top: 10px; font-weight: bold; }
+    button { 
+      margin-top: 15px; 
+      padding: 10px 20px; 
+      font-size: 16px; 
+      border: none; 
+      border-radius: 8px; 
+      background: #0833A2; 
+      color: #fff; 
+      cursor: pointer; 
+    }
+    button:hover { background: #062874; }
+
+    /* Responsividad */
+    @media (max-width: 768px) {
+      .imagenes-laterales { display: none; } /* Ocultar imágenes en pantallas pequeñas */
+      .tablero { margin-top: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Logos fijos -->
+<img src="logo1.png" class="logo-fixed arriba izquierda" style="width: 50px;" alt="Logo 1">
+<img src="logo2.png" class="logo-fixed arriba derecha" style="width: 120px;" alt="Logo 2">
+
+<h1>Memorama - Red de Apoyo</h1>
+<p>Encuentra las parejas de preguntas y respuestas.</p>
+
+<!-- Imágenes laterales responsivas -->
+<div class="imagenes-laterales izq">
+  <img src="img1.png" class="imagen-dispersa">
+  <img src="img2.png" class="imagen-dispersa">
+  <img src="img3.png" class="imagen-dispersa">
+</div>
+
+<div class="imagenes-laterales der">
+  <img src="img4.png" class="imagen-dispersa">
+  <img src="img5.png" class="imagen-dispersa">
+  <img src="img6.png" class="imagen-dispersa">
+</div>
+
+<!-- Tablero de cartas -->
+<div class="tablero" id="tablero"></div>
+
+<div id="mensaje"></div>
+<p id="intentos">Intentos: 0</p>
+<p id="cronometro">Tiempo: 00:00</p>
+<button onclick="reiniciar()">🔄 Reiniciar</button>
+
+<!-- Sonidos -->
+<audio id="sonidoAcierto" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="sonidoError" src="https://actions.google.com/sounds/v1/cartoon/boing.ogg"></audio>
+<audio id="sonidoVictoria" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+
+<script>
+// 🔹 Pares de preguntas y respuestas
+const pares = [
+  ["Pedir apoyo, es para las personas que no pueden resolver sólos sus problemas", "Reconocer y pedir apoyo es parte de las estrategias de afrontamiento."],
+  ["No puedo contar con nadie del trabajo", "Los compañeros de trabajo son una de las fuentes para construir redes de apoyo."],
+  ["No me gusta hablar de mi con los demás, por eso no tengo amigos", "Hablar de nosotros, es reconocer y validar lo que sentimos."],
+  ["No cuento con nadie, no creo en la ayuda desinteresada", "Construir una red de apoyo te permitirá cambiar la idea de lo que implica recibir ayuda."],
+  ["El horario de trabajo es cansado y más porque el ambiente es muy pesado, no puedes hablar ni decir nada", "Cuida las relaciones con los compañeros, puedes emplear unos minutos para saber algo nuevo de los compañeros."],
+  ["A mi familia no le puede decir nada, porque cuentan todo", "Expresa que sientes cuando alguien comparte información personal, es la forma de aclarar y comunicarnos con los demás."]
+];
+
+let cartas = [...pares.flat()].sort(()=>Math.random()-0.5);
+const tablero = document.getElementById("tablero");
+let primera = null, bloqueo=false, encontrados=0, intentos=0;
+
+// Cronómetro
+let tiempo=0, intervalo=null;
+const cronometro=document.getElementById("cronometro");
+function iniciarCronometro() {
+  if(!intervalo){
+    intervalo=setInterval(()=>{
+      tiempo++;
+      const min=Math.floor(tiempo/60);
+      const sec=tiempo%60;
+      cronometro.innerText=`Tiempo: ${String(min).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+    },1000);
+  }
+}
+
+// Sonidos
+const sonidoAcierto=document.getElementById("sonidoAcierto");
+const sonidoError=document.getElementById("sonidoError");
+const sonidoVictoria=document.getElementById("sonidoVictoria");
+
+// Crear cartas
+cartas.forEach(texto=>{
+  const div=document.createElement("div");
+  div.classList.add("carta");
+  const frente=document.createElement("div"); 
+  frente.classList.add("cara","frente"); 
+  frente.innerText="";
+  const atras=document.createElement("div"); 
+  atras.classList.add("cara","atras"); 
+  atras.innerText=texto;
+  div.appendChild(frente); 
+  div.appendChild(atras);
+  div.dataset.valor=texto;
+  div.addEventListener("click",()=>voltear(div));
+  tablero.appendChild(div);
+});
+
+// Funciones del juego
+function voltear(carta){
+  iniciarCronometro();
+  if(bloqueo || carta.classList.contains("volteada") || carta.classList.contains("acertada")) return;
+  carta.classList.add("volteada");
+  if(!primera){ 
+    primera=carta; 
+  } else{
+    intentos++; 
+    document.getElementById("intentos").innerText="Intentos: "+intentos;
+    if(sonPareja(primera.dataset.valor,carta.dataset.valor)){
+      primera.classList.add("acertada"); 
+      carta.classList.add("acertada"); 
+      encontrados++; 
+      sonidoAcierto.play();
+      if(encontrados===pares.length){ 
+        clearInterval(intervalo); 
+        document.getElementById("mensaje").innerText=`🎉 ¡Felicidades! Lo lograste en ${intentos} intentos y ${String(Math.floor(tiempo/60)).padStart(2,"0")}:${String(tiempo%60).padStart(2,"0")}.`; 
+        sonidoVictoria.play(); 
+      }
+      primera=null;
+    } else{
+      bloqueo=true; 
+      sonidoError.play();
+      setTimeout(()=>{ 
+        primera.classList.remove("volteada"); 
+        carta.classList.remove("volteada"); 
+        primera=null; 
+        bloqueo=false; 
+      },1000);
+    }
+  }
+}
+function sonPareja(a,b){ 
+  return pares.some(par=>par.includes(a)&&par.includes(b)&&a!==b); 
+}
+function reiniciar(){ location.reload(); }
+</script>
+</body>
+</html>
